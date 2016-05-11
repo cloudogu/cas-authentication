@@ -2,6 +2,8 @@ var url           = require('url'),
     http          = require('http'),
     https         = require('https'),
     parseXML      = require('xml2js').parseString,
+    client        = require('request-promise'),
+    parser        = require('xml2json'),
     XMLprocessors = require('xml2js/lib/processors');
 
 /**
@@ -13,6 +15,10 @@ var AUTH_TYPE = {
     BOUNCE_REDIRECT : 1,
     BLOCK           : 2
 };
+
+var proxyTokens ={};
+var proxyCbUrl = '/api/v1/pgtCallback';
+
 
 /**
  * @typedef {Object} CAS_options
@@ -26,6 +32,8 @@ var AUTH_TYPE = {
  * @property {string}  [session_name='cas_user']
  * @property {string}  [session_info=false]
  * @property {boolean} [destroy_session=false]
+ * @property {string} [proxyCallback_url]
+ * @property {string} [clearPass_url]
  */
 
 /**
@@ -80,7 +88,7 @@ function CASAuthentication(options) {
                     }
                     var success = result.serviceresponse.authenticationsuccess;
                     if (success) {
-                        return callback(null, success.user, success.attributes);
+                        return callback(null, success.user, success.attributes, success.proxygrantingticket);
                     }
                     else {
                         return callback(new Error( 'CAS authentication failed.'));
@@ -153,6 +161,9 @@ function CASAuthentication(options) {
 
     this.service_url     = options.service_url;
 
+    this.proxyCallback_url = options.proxyCallback_url;
+    this.clearPass_url = options.clearPass_url;
+
     this.renew           = options.renew !== undefined ? !!options.renew : false;
 
     this.is_dev_mode     = options.is_dev_mode !== undefined ? !!options.is_dev_mode : false;
@@ -206,6 +217,19 @@ CASAuthentication.prototype.block = function(req, res, next) {
  * Handle a request with CAS authentication.
  */
 CASAuthentication.prototype._handle = function(req, res, next, authType) {
+    if (req.path == proxyCbUrl){
+      var pgtId = req.query.pgtId;
+      var pgtIou = req.query.pgtIou;
+      if ( pgtId && pgtIou ){
+        proxyTokens[pgtIou] = pgtId;
+        res.send('OK');
+        return;
+      } else {
+        // cas checks health without parameter
+        res.send('OK');
+        return;
+      }
+    }
 
     // If the session has been validated with CAS, no action is required.
     if (req.session[ this.session_name ]) {
@@ -245,11 +269,13 @@ CASAuthentication.prototype._login = function(req, res, next) {
 
     // Save the return URL in the session. If an explicit return URL is set as a
     // query parameter, use that. Otherwise, just use the URL from the request.
-    req.session.cas_return_to = req.query.returnTo || url.parse(req.url).path;
+    // req.session.cas_return_to = req.query.returnTo || url.parse(req.url).path;
+    var redirectUri = this.service_url + url.parse(req.url).path;
+    req.session.cas_return_to = redirectUri;
 
     // Set up the query parameters.
     var query = {
-        service: this.service_url + url.parse(req.url).pathname,
+        service: redirectUri,
         renew: this.renew
     };
 
@@ -297,12 +323,19 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
 
     if (['1.0', '2.0', '3.0'].indexOf(this.cas_version) >= 0){
         requestOptions.method = 'GET';
+
+        var q = {
+            service: this.service_url + url.parse(req.url).pathname,
+            ticket: req.query.ticket
+        };
+
+        if (this.proxyCallback_url){
+          q.pgtUrl = this.proxyCallback_url;
+        }
+
         requestOptions.path = url.format({
             pathname: this.cas_path + this._validateUri,
-            query: {
-                service: this.service_url + url.parse(req.url).pathname,
-                ticket: req.query.ticket
-            }
+            query: q
         });
     }
     else if (this.cas_version === 'saml1.1'){
@@ -342,7 +375,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
             return body += chunk;
         }.bind(this));
         response.on('end', function() {
-            this._validate(body, function(err, user, attributes) {
+            this._validate(body, function(err, user, attributes, proxyGrantingTicket) {
                 if (err) {
                     console.log(err);
                     res.sendStatus(401);
@@ -352,7 +385,14 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                     if (this.session_info) {
                         req.session[ this.session_info ] = attributes || {};
                     }
-                    res.redirect(req.session.cas_return_to);
+                    if (proxyGrantingTicket && this.proxyCallback_url){
+                      this._getPassword(proxyGrantingTicket).then(function (data) {
+                        req.session [ 'password' ] = data;
+                        res.redirect(req.session.cas_return_to);
+                      });
+                    } else{
+                      res.redirect(req.session.cas_return_to);
+                    }
                 }
             }.bind(this));
         }.bind(this));
@@ -372,5 +412,42 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     }
     request.end();
 };
+
+CASAuthentication.prototype._getPassword = function(pgtIou) {
+  var self = this;
+  var pgtId = proxyTokens[pgtIou];
+  var options = {
+    uri: this.cas_url + '/proxy',
+    qs: {
+      pgt: pgtId,
+      targetService: self.clearPass_url
+    }
+  };
+  
+  return client(options).then(function(xml) {
+    var json = parser.toJson(xml, {
+      object: true
+    });
+
+    var st = json['cas:serviceResponse']['cas:proxySuccess']['cas:proxyTicket'];
+
+    return client.get({
+      uri: self.clearPass_url,
+      qs: {
+        ticket: st
+      }
+    }).then(function(passwordXml) {
+      var json = parser.toJson(passwordXml, {
+        object: true
+      });
+      return json['cas:clearPassResponse']['cas:clearPassSuccess']['cas:credentials'];
+    }).catch(function(err) {
+      console.log("clear pass password error: " + err);
+    });
+  }).catch(function(err) {
+    console.log("clear pass ticket error: " + err);
+  });
+
+}
 
 module.exports = CASAuthentication;
