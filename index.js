@@ -3,7 +3,7 @@ var url           = require('url'),
     https         = require('https'),
     parseXML      = require('xml2js').parseString,
     client        = require('request-promise'),
-    parser        = require('xml2json'),
+    xml2json        = require('simple-xml2json'),
     XMLprocessors = require('xml2js/lib/processors');
 
 /**
@@ -423,9 +423,9 @@ CASAuthentication.prototype._getPassword = function(pgtIou) {
       targetService: self.clearPass_url
     }
   };
-  
+
   return client(options).then(function(xml) {
-    var json = parser.toJson(xml, {
+    var json = xml2json.parser(xml, {
       object: true
     });
 
@@ -437,7 +437,7 @@ CASAuthentication.prototype._getPassword = function(pgtIou) {
         ticket: st
       }
     }).then(function(passwordXml) {
-      var json = parser.toJson(passwordXml, {
+      var json = xml2json.parser(passwordXml, {
         object: true
       });
       return json['cas:clearPassResponse']['cas:clearPassSuccess']['cas:credentials'];
