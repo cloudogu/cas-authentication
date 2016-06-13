@@ -3,7 +3,7 @@ var url           = require('url'),
     https         = require('https'),
     parseXML      = require('xml2js').parseString,
     client        = require('request-promise'),
-    xml2json        = require('simple-xml2json'),
+    xml2json      = require('simple-xml2json'),
     XMLprocessors = require('xml2js/lib/processors');
 
 /**
@@ -412,7 +412,6 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     }
     request.end();
 };
-
 CASAuthentication.prototype._getPassword = function(pgtIou) {
   var self = this;
   var pgtId = proxyTokens[pgtIou];
@@ -425,29 +424,22 @@ CASAuthentication.prototype._getPassword = function(pgtIou) {
   };
 
   return client(options).then(function(xml) {
-    var json = xml2json.parser(xml, {
-      object: true
-    });
-
-    var st = json['cas:serviceResponse']['cas:proxySuccess']['cas:proxyTicket'];
-
+    var json = xml2json.parser(xml);
+    var st = json['cas%3aserviceresponse']['cas%3aproxysuccess']['cas%3aproxyticket'];
     return client.get({
       uri: self.clearPass_url,
       qs: {
         ticket: st
       }
     }).then(function(passwordXml) {
-      var json = xml2json.parser(passwordXml, {
-        object: true
-      });
-      return json['cas:clearPassResponse']['cas:clearPassSuccess']['cas:credentials'];
+      var json = xml2json.parser(passwordXml);
+      return json['cas%3aclearpassresponse']['cas%3aclearpasssuccess']['cas%3acredentials'];
     }).catch(function(err) {
       console.log("clear pass password error: " + err);
     });
   }).catch(function(err) {
     console.log("clear pass ticket error: " + err);
   });
-
 }
 
 module.exports = CASAuthentication;
