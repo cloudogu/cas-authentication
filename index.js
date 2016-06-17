@@ -433,6 +433,7 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
 CASAuthentication.prototype._getPassword = function(pgtIou) {
   var self = this;
   var pgtId = proxyTokens[pgtIou];
+  delete proxyTokens[pgtIou];
   var options = {
     uri: this.cas_url + '/proxy',
     qs: {
