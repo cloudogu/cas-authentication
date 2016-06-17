@@ -25,7 +25,9 @@
   },
   "dependencies": {
     "xml2js": "^0.4.8",
-    "simple-xml2json": "^1.2.3"
+    "simple-xml2json": "^1.2.3",
+    "weak": "^1.0.1",
+    "weakmap.js": "^0.0.1"
   },
   "devDependencies": {
     "express": "^4.12.3",
