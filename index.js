@@ -301,11 +301,14 @@ CASAuthentication.prototype.logout = function(req, res, next) {
     var jsonReq = xml2json.parser(xmlReq);
     var serviceTicket = jsonReq['samlp%3alogoutrequest']['samlp%3asessionindex'];
     console.log('destroy session with serviceTicket: ' + serviceTicket);
-    sessionMap.get(serviceTicket).destroy(function(err) {
-      if (err) {
-        console.log(err);
-      }
-    });
+    var session = sessionMap.get(serviceTicket);
+    if (session) {
+      session.destroy(function(err) {
+        if (err) {
+          console.log(err);
+        }
+      });
+    }
     res.sendStatus(200);
     return;
   }
