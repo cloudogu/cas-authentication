@@ -17,6 +17,7 @@ var AUTH_TYPE = {
     BLOCK           : 2
 };
 
+var DEFAULT_REDIRECT_PATH = '/';
 var proxyTokens ={};
 var sessionMap = new Map();
 var proxyCbUrl = '/api/v1/pgtCallback';
@@ -237,7 +238,7 @@ CASAuthentication.prototype._handle = function(req, res, next, authType) {
     if (req.session[ this.session_name ]) {
         // If this is a bounce redirect, redirect the authenticated user.
         if (authType === AUTH_TYPE.BOUNCE_REDIRECT) {
-            res.redirect(req.session.cas_return_to);
+            res.redirect(req.session.cas_return_to || DEFAULT_REDIRECT_PATH);
         }
         // Otherwise, allow them through to their request.
         else {
@@ -416,10 +417,10 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                     if (proxyGrantingTicket && this.proxyCallback_url){
                       this._getPassword(proxyGrantingTicket).then(function (data) {
                         req.session [ 'password' ] = data;
-                        res.redirect(req.session.cas_return_to);
+                        res.redirect(req.session.cas_return_to || DEFAULT_REDIRECT_PATH);
                       });
                     } else{
-                      res.redirect(req.session.cas_return_to);
+                      res.redirect(req.session.cas_return_to || DEFAULT_REDIRECT_PATH);
                     }
                 }
             }.bind(this));
