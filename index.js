@@ -4,9 +4,7 @@ var url           = require('url'),
     parseXML      = require('xml2js').parseString,
     client        = require('request-promise'),
     xml2json      = require('simple-xml2json'),
-    XMLprocessors = require('xml2js/lib/processors'),
-
-import WeakValueMap from "weak-value-map";
+    XMLprocessors = require('xml2js/lib/processors')
 /**
  * The CAS authentication types.
  * @enum {number}
@@ -338,13 +336,13 @@ CASAuthentication.prototype.logout = function(req, res, next) {
 CASAuthentication.prototype._handleTicket = function(req, res, next) {
     
     var ticket = req.query.ticket;
-    var weakSession = new WeakValueMap();
-    weakSession.set(req.session, function(){
+    var session = new Map;
+    session.set(req.session, function(){
         console.log("delete entry from sessionMap with ticket: "+ticket);
         sessionMap.delete(ticket);
     });
     console.log("set ticket in sessionMap: "+ ticket);
-    sessionMap.set(ticket,weakSession);
+    sessionMap.set(ticket,session);
     var requestOptions = {
         host: this.cas_host,
         port: this.cas_port,
