@@ -24,9 +24,9 @@
     "url": "https://github.com/kylepixel/cas-authentication.git"
   },
   "dependencies": {
-    "xml2js": "^0.4.8",
     "simple-xml2json": "^1.2.3",
-    "weak": "^1.0.1"
+    "weak-value-map": "^1.0.1",
+    "xml2js": "^0.4.8"
   },
   "devDependencies": {
     "express": "^4.12.3",
