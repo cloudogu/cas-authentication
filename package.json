@@ -1,6 +1,6 @@
 {
   "name": "cas-authentication",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "A CAS authentication library designed to be used as middleware for an Express server.",
   "keywords": [
     "cas",
@@ -25,8 +25,7 @@
   },
   "dependencies": {
     "xml2js": "^0.4.8",
-    "simple-xml2json": "^1.2.3",
-    "weak": "^1.0.1"
+    "simple-xml2json": "^1.2.3"
   },
   "devDependencies": {
     "express": "^4.12.3",
