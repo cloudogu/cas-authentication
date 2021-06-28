@@ -468,7 +468,6 @@ CASAuthentication.prototype.getProxyTicket = function(pgt, targetService) {
     return client(options).then(function(xml) {
         var json = xml2json.parser(xml);
         var pt = json['cas%3aserviceresponse']['cas%3aproxysuccess']['cas%3aproxyticket'];
-        console.log("received pt: " + pt);
         return pt;
     }).catch(function(err) {
         console.log("proxy ticket error: " + err);
