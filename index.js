@@ -36,7 +36,6 @@ var proxyCbUrl = '/api/v1/pgtCallback';
  * @property {string}  [session_info=false]
  * @property {boolean} [destroy_session=false]
  * @property {string} [proxyCallback_url]
- * @property {string} [clearPass_url]
  */
 
 /**
@@ -165,7 +164,6 @@ function CASAuthentication(options) {
     this.service_url     = options.service_url;
 
     this.proxyCallback_url = options.proxyCallback_url;
-    this.clearPass_url = options.clearPass_url;
 
     this.renew           = options.renew !== undefined ? !!options.renew : false;
 
@@ -429,10 +427,10 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
                         req.session[ this.session_info ] = attributes || {};
                     }
                     if (proxyGrantingTicket && this.proxyCallback_url){
-                      this._getPassword(proxyGrantingTicket).then(function (data) {
-                        req.session [ 'password' ] = data;
+                        var pgt = proxyTokens[proxyGrantingTicket];
+                        delete proxyTokens[proxyGrantingTicket];
+                        req.session [ 'pgt' ] = pgt;
                         res.redirect(req.session.cas_return_to || DEFAULT_REDIRECT_PATH);
-                      });
                     } else{
                       res.redirect(req.session.cas_return_to || DEFAULT_REDIRECT_PATH);
                     }
@@ -455,35 +453,25 @@ CASAuthentication.prototype._handleTicket = function(req, res, next) {
     }
     request.end();
 };
-CASAuthentication.prototype._getPassword = function(pgtIou) {
-  var self = this;
-  var pgtId = proxyTokens[pgtIou];
-  delete proxyTokens[pgtIou];
-  var options = {
-    uri: this.cas_url + '/proxy',
-    qs: {
-      pgt: pgtId,
-      targetService: self.clearPass_url
-    }
-  };
 
-  return client(options).then(function(xml) {
-    var json = xml2json.parser(xml);
-    var st = json['cas%3aserviceresponse']['cas%3aproxysuccess']['cas%3aproxyticket'];
-    return client.get({
-      uri: self.clearPass_url,
-      qs: {
-        ticket: st
-      }
-    }).then(function(passwordXml) {
-      var json = xml2json.parser(passwordXml);
-      return json['cas%3aclearpassresponse']['cas%3aclearpasssuccess']['cas%3acredentials'];
+CASAuthentication.prototype.getProxyTicket = function(pgt, targetService) {
+    var self = this;
+
+    var options = {
+        uri: this.cas_url + '/proxy',
+        qs: {
+            pgt: pgt,
+            targetService: targetService
+        }
+    };
+
+    return client(options).then(function(xml) {
+        var json = xml2json.parser(xml);
+        var pt = json['cas%3aserviceresponse']['cas%3aproxysuccess']['cas%3aproxyticket'];
+        return pt;
     }).catch(function(err) {
-      console.log("clear pass password error: " + err);
+        console.log("proxy ticket error: " + err);
     });
-  }).catch(function(err) {
-    console.log("clear pass ticket error: " + err);
-  });
 }
 
 module.exports = CASAuthentication;
