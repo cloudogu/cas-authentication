@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Stop usage of clearpass
+- Add function to receive proxy tickets
+
 ## [v0.2.0](https://github.com/cloudogu/cas-authentication/releases/tag/v0.2.0)
 
 ### Fixed
